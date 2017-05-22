@@ -1,0 +1,22 @@
+{
+  "name": "MaxPages",
+  "version": "0.0.0",
+  "authors": [
+    "Maxim Kalitinenkov"
+  ],
+  "moduleType": [
+    "globals"
+  ],
+  "license": "MIT",
+  "private": true,
+  "ignore": [
+    "**/.*",
+    "node_modules",
+    "bower_components"
+  ],
+  "directory": "app/bower_components/",
+  "dependencies": {
+    "angular": "~1.5.1",
+    "angular-mocks": "~1.5.1"
+  }
+}
