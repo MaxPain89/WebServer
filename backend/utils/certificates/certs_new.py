@@ -89,7 +89,8 @@ class Entity:
         return self.scr
 
     def generate_crt(self, ca, sign_alg=SignAlg.SHA256,
-                     file=None, del_if_exist=True):
+                     file=None, del_if_exist=True,
+                     alt_dns=list(), alt_ips=list()):
         self.crt = crypto.X509()
         self.crt.set_subject(self.scr.get_subject())
         self.crt.gmtime_adj_notBefore(0)
@@ -99,6 +100,17 @@ class Entity:
         self.crt.set_issuer(ca.crt.get_subject())
         self.crt.set_pubkey(self.scr.get_pubkey())
         self.crt.sign(ca.key, sign_alg)
+        alt_names = list()
+        for dns in alt_dns:
+            alt_names.append(":".join(["DNS", dns]))
+        for ip_name in alt_ips:
+            alt_names.append(":".join(["IP", ip_name]))
+        if alt_names:
+            self.crt.add_extensions([
+                crypto.X509Extension(
+                    b"subjectAltName", False, ", ".join(alt_names).encode()
+                )
+            ],)
         if file:
             crt_bin = crypto.dump_certificate(crypto.FILETYPE_PEM, self.crt)
             self._save_to_file(crt_bin, file, del_if_exist)
@@ -164,7 +176,8 @@ def create_ca(req, days=10*365, save_files=True, path=None):
     return ca
 
 
-def create_certificate(req, ca, days=365, save_files=True, path=None):
+def create_certificate(req, ca, days=365, save_files=True, path=None,
+                       alt_dns=list(), alt_ips=list()):
     if not path:
         path = os.path.abspath("certificates")
     os.makedirs(path, exist_ok=True)
@@ -182,21 +195,23 @@ def create_certificate(req, ca, days=365, save_files=True, path=None):
     cert.generate_private_key(file=key_path)
     cert.get_public_key(file=pub_key_path)
     cert.generate_csr(req, file=csr_path)
-    cert.generate_crt(ca, file=crt_path)
+    cert.generate_crt(ca, file=crt_path, alt_dns=alt_dns, alt_ips=alt_ips)
     return cert
 
-#
-# ca_req = RequestInfo(common_name="rootCa", country="RU",
-#                      state="SmolObl",
-#                      city="Smolensk", organization_name="Max org",
-#                      organizational_unit="IT", email="mail@mail.com")
-#
-# server_req = RequestInfo(common_name="kalitinenkov.ddns.net", country="RU",
-#                          state="SmolObl",
-#                          city="Smolensk", organization_name="Max org",
-#                          organizational_unit="IT",
-#                          email="kalitinenkov@gmail.com")
-#
-# path = os.path.abspath(os.path.join("certs"))
-# ca = create_ca(ca_req, path=path)
-# cert = create_certificate(req=server_req, ca=ca, path=path)
+
+ca_req = RequestInfo(common_name="rootCa", country="RU",
+                     state="SmolObl",
+                     city="Smolensk", organization_name="Max org",
+                     organizational_unit="IT", email="mail@mail.com")
+
+server_req = RequestInfo(common_name="kalitinenkov.ddns.net", country="RU",
+                         state="SmolObl",
+                         city="Smolensk", organization_name="Max org",
+                         organizational_unit="IT",
+                         email="kalitinenkov@gmail.com")
+
+path = os.path.abspath(os.path.join("certs"))
+ca = create_ca(ca_req, path=path)
+cert = create_certificate(req=server_req, ca=ca, path=path,
+                          alt_dns=["kalitinenkov.ddns.net"],
+                          alt_ips=["172.22.8.198"])
