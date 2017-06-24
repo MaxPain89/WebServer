@@ -28,16 +28,15 @@ class Entity:
         self.crt = None
 
     def generate_private_key(self, size=2048, file=None, del_if_exist=True):
-        """Generate private key.
+        """
+        Generate private key.
 
-        Keyword arguments:
-
-        size -- size of private key
-
-        file -- path to file, if the parameter is specified
-        then key will be saved in file
-
-        del_if_exist -- boolean flag for deleting file if it already exist
+        :param int size: (optional) size of private key. Default 2048.
+        :param str file: (optional) path to file, if the parameter is specified.
+            then key will be saved in file.
+        :param bool del_if_exist: (optional) boolean flag for deleting
+            target file,
+            if it already exist, or raise exception.
         """
         self.key = crypto.PKey()
         self.key.generate_key(crypto.TYPE_RSA, size)
@@ -47,16 +46,14 @@ class Entity:
         return self.key
 
     def get_public_key(self, file=None, del_if_exist=True):
-        """Get public key from private
+        """
+        Get public key from private.
 
-        Keyword arguments:
-
-        p_key -- private key
-
-        file -- path to file, if the parameter is specified
-        then key will be saved in file
-
-        del_if_exist -- boolean flag for deleting file if it already exist
+        :param str file: (optional) path to file, if the parameter is specified
+            then key will be saved in file.
+        :param bool del_if_exist: (optional) boolean flag for deleting
+            target file,
+            if it already exist, or raise exception.
         """
         pub_key_binary = crypto.dump_publickey(crypto.FILETYPE_PEM, self.key)
         if file:
@@ -65,6 +62,17 @@ class Entity:
 
     def generate_csr(self, req_info, sign_alg=SignAlg.SHA256,
                      file=None, del_if_exist=True):
+        """
+        Generate csr request.
+
+        :param RequestInfo req_info: an instance of request info class.
+        :param str sign_alg: (optional) algorithm for signing. Default sha256.
+        :param str file: (optional) path to file, if the parameter is specified
+            then key will be saved in file.
+        :param bool del_if_exist: (optional) boolean flag for deleting
+            target file,
+            if it already exist, or raise exception.
+        """
         self.scr = crypto.X509Req()
         self.scr.get_subject().commonName = req_info.common_name
         if req_info.country:
@@ -91,6 +99,19 @@ class Entity:
     def generate_crt(self, ca, sign_alg=SignAlg.SHA256,
                      file=None, del_if_exist=True,
                      alt_dns=list(), alt_ips=list()):
+        """
+        Generate certificate that is signed by provided ca.
+
+        :param Entity ca: an instance of ca Entity, it will sign crt.
+        :param str sign_alg: (optional) algorithm for signing. Default sha256.
+        :param str file: (optional) path to file, if the parameter is specified
+            then key will be saved in file.
+        :param bool del_if_exist: (optional) boolean flag for deleting
+            target file,
+            if it already exist, or raise exception.
+        :param alt_dns: list of alternative dns names (extensions v3).
+        :param alt_ips: list of alternative ip addresses (extensions v3).
+        """
         self.crt = crypto.X509()
         self.crt.set_subject(self.scr.get_subject())
         self.crt.gmtime_adj_notBefore(0)
@@ -118,6 +139,16 @@ class Entity:
 
     def generate_self_sign_crt(self, sign_alg=SignAlg.SHA256,
                                file=None, del_if_exist=True):
+        """
+        Generate self signed certificate.
+
+        :param str sign_alg: (optional) algorithm for signing. Default sha256.
+        :param str file: (optional) path to file, if the parameter is specified
+            then key will be saved in file.
+        :param bool del_if_exist: (optional) boolean flag for deleting
+            target file,
+            if it already exist, or raise exception.
+        """
         self.crt = crypto.X509()
         self.crt.set_subject(self.scr.get_subject())
         self.crt.gmtime_adj_notBefore(0)
@@ -139,9 +170,9 @@ class Entity:
         If the file already exist, then delete it and create new one,
         if *del_if_exist* set to true, otherwise raise exception.
 
-        :param obj: object for saving
-        :param str file_name: file name for saving
-        :param bool del_if_exist: (optional) boolean flag for deleting
+        :param obj: object for saving.
+        :param str file_name: file name for saving.
+        :param bool del_if_exist: (optional) boolean flag for deleting.
             target file,
             if it already exist, or raise exception.
         """
@@ -154,15 +185,23 @@ class Entity:
             f.write(obj)
 
 
-def create_ca(req, days=10*365, save_files=True, path=None):
+def create_ca(req_info, days=10 * 365, save_files=True, path=None):
+    """
+    Create ca authority.
+
+    :param RequestInfo req_info: an instance of request info class.
+    :param int days: (optional) count of days before expiration.
+    :param bool save_files: flag for saving all files.
+    :param str path: (optional) folder name for saving.
+    """
     if not path:
         path = os.path.abspath("certificates")
     os.makedirs(path, exist_ok=True)
     if save_files:
-        ca_key_path = os.path.join(path, req.common_name + ".key")
-        ca_pub_key_path = os.path.join(path, req.common_name + "_pub.key")
-        ca_csr_path = os.path.join(path, req.common_name + ".csr")
-        ca_crt_path = os.path.join(path, req.common_name + ".crt")
+        ca_key_path = os.path.join(path, req_info.common_name + ".key")
+        ca_pub_key_path = os.path.join(path, req_info.common_name + "_pub.key")
+        ca_csr_path = os.path.join(path, req_info.common_name + ".csr")
+        ca_crt_path = os.path.join(path, req_info.common_name + ".crt")
     else:
         ca_key_path = None
         ca_pub_key_path = None
@@ -171,21 +210,32 @@ def create_ca(req, days=10*365, save_files=True, path=None):
     ca = Entity(days)
     ca.generate_private_key(file=ca_key_path)
     ca.get_public_key(file=ca_pub_key_path)
-    ca.generate_csr(req_info=req, file=ca_csr_path)
+    ca.generate_csr(req_info=req_info, file=ca_csr_path)
     ca.generate_self_sign_crt(file=ca_crt_path)
     return ca
 
 
-def create_certificate(req, ca, days=365, save_files=True, path=None,
+def create_certificate(req_info, ca, days=365, save_files=True, path=None,
                        alt_dns=list(), alt_ips=list()):
+    """
+    Create signed certificate.
+
+    :param RequestInfo req_info: an instance of request info class.
+    :param Entity ca: ca authority for signing.
+    :param int days: (optional) count of days before expiration.
+    :param bool save_files: flag for saving all files.
+    :param str path: (optional) folder name for saving.
+    :param alt_dns: list of alternative dns names (extensions v3).
+    :param alt_ips: list of alternative ip addresses (extensions v3).
+    """
     if not path:
         path = os.path.abspath("certificates")
     os.makedirs(path, exist_ok=True)
     if save_files:
-        key_path = os.path.join(path, req.common_name + ".key")
-        pub_key_path = os.path.join(path, req.common_name + "_pub.key")
-        csr_path = os.path.join(path, req.common_name + ".csr")
-        crt_path = os.path.join(path, req.common_name + ".crt")
+        key_path = os.path.join(path, req_info.common_name + ".key")
+        pub_key_path = os.path.join(path, req_info.common_name + "_pub.key")
+        csr_path = os.path.join(path, req_info.common_name + ".csr")
+        crt_path = os.path.join(path, req_info.common_name + ".crt")
     else:
         key_path = None
         pub_key_path = None
@@ -194,24 +244,24 @@ def create_certificate(req, ca, days=365, save_files=True, path=None,
     cert = Entity(days)
     cert.generate_private_key(file=key_path)
     cert.get_public_key(file=pub_key_path)
-    cert.generate_csr(req, file=csr_path)
+    cert.generate_csr(req_info, file=csr_path)
     cert.generate_crt(ca, file=crt_path, alt_dns=alt_dns, alt_ips=alt_ips)
     return cert
 
-
-ca_req = RequestInfo(common_name="rootCa", country="RU",
-                     state="SmolObl",
-                     city="Smolensk", organization_name="Max org",
-                     organizational_unit="IT", email="mail@mail.com")
-
-server_req = RequestInfo(common_name="kalitinenkov.ddns.net", country="RU",
-                         state="SmolObl",
-                         city="Smolensk", organization_name="Max org",
-                         organizational_unit="IT",
-                         email="kalitinenkov@gmail.com")
-
-path = os.path.abspath(os.path.join("certs"))
-ca = create_ca(ca_req, path=path)
-cert = create_certificate(req=server_req, ca=ca, path=path,
-                          alt_dns=["kalitinenkov.ddns.net"],
-                          alt_ips=["172.22.8.198"])
+# Example of creation ca and certificate
+# ca_req = RequestInfo(common_name="rootCa", country="RU",
+#                      state="SmolObl",
+#                      city="Smolensk", organization_name="Max org",
+#                      organizational_unit="IT", email="mail@mail.com")
+#
+# server_req = RequestInfo(common_name="kalitinenkov.ddns.net", country="RU",
+#                          state="SmolObl",
+#                          city="Smolensk", organization_name="Max org",
+#                          organizational_unit="IT",
+#                          email="kalitinenkov@gmail.com")
+#
+# path = os.path.abspath(os.path.join("certs"))
+# ca = create_ca(ca_req, path=path)
+# cert = create_certificate(req_info=server_req, ca=ca, path=path,
+#                           alt_dns=["kalitinenkov.ddns.net"],
+#                           alt_ips=["172.22.8.198"])
